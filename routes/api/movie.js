@@ -7,7 +7,7 @@ const Movie = require('../../models/Movie')
 //@description  Obtiene todas las peliculas presentes en la db
 router.get('/',async (req,res)=> {
    try{
-      let movies = await Movie.find({},{__v: 0,_id:0});
+      let movies = await Movie.find({},{__v: 0});
       return res.json(movies);
    }catch (e) {
        console.error(e)
@@ -59,13 +59,24 @@ router.post('/', [
 
 //@route        PUT api/movies
 //@description  Edita una pelicula ya existente
-router.put('/:id',async (req,res)=> {
-    const {name,releaseDate,genre,summary} = req.body
-    if(!Movie.findById(req.params.id)){
-        return res.status(400).json({errors: [{msg:'No existe la pelicula'}]})
+router.put('/:id',[
+    check('director','El tipo de dato es erroneo').isString(),
+    check('name','El tipo de dato es erroneo').isString(),
+    check('genre','El tipo de dato es erroneo').isString()
+    ],async (req,res)=> {
+    const {name,genre,summary,director} = req.body
+    let {releaseDate} = req.body;
+    if(releaseDate){
+        releaseDate = new Date(releaseDate);
+        if(isNaN(releaseDate.getHours())){
+            return res.status(400).json({errors: [{msg:'La fecha no es valida, el formato es yyyy-mm-dd'}]})
+        }
     }
     try{
-        await Movie.updateOne({_id:req.params.id},{name,releaseDate,genre,summary})
+        if(!(await Movie.findOne({_id:req.params.id}))){
+            return res.status(400).json({errors: [{msg:'No existe la pelicula'}]})
+        }
+        await Movie.updateOne({_id:req.params.id},{name,releaseDate,genre,summary,director})
         return res.send('Actualizado correctamente')
     }catch (e) {
         console.error(e)
@@ -78,6 +89,9 @@ router.put('/:id',async (req,res)=> {
 //@description  Borra una pelicula de la base de datos
 router.delete('/:id',async (req,res)=> {
     try{
+        if(!(await Movie.findOne({_id:req.params.id}))){
+            return res.status(400).json({errors: [{msg:'No existe la pelicula'}]})
+        }
         await Movie.findByIdAndDelete(req.params.id)
         return res.send("Borrado correctamente")
     }catch (e) {
